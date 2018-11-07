@@ -24,10 +24,9 @@ testStyle :: Test
 testStyle = "testStyle" ~:
    TestList [ tabc , tarithmetic, treverse, tzip ]
 
+abc :: Bool -> Bool -> Bool -> Bool
 abc x y z =
-  if x then if y then True else
-       if (x && z) then True else False
-  else False
+  x && y || (x && z)
  
 
 tabc :: Test
@@ -44,9 +43,9 @@ arithmetic x1 x2 =
      let e = snd (fst x2) in
      let f = snd x2
        in
-       ((((((b*f) - (c*e)), ((c*
-       d) - (a*f)
-       ), ((a*e)-(b*d))))))
+       (b*f - c*e, c*
+       d - a*f
+       , a*e-b*d)
  
 
 tarithmetic :: Test
@@ -64,7 +63,7 @@ treverse :: Test
 treverse = "reverse" ~: TestList [reverse [3,2,1] ~?= [1,2,3],
                                   reverse [1]     ~?= [1] ]
 
-zip xs ys = g 0 xs ys where
+zip = g 0 where
   g n xs ys = if n == length xs || n == length ys then [] else
           (xs !! n, ys !! n) : g (n + 1) xs ys
 
@@ -88,10 +87,13 @@ testLists = "testLists" ~: TestList
 -- intersperse is defined in Data.List, and you can test your solution against
 -- that one.
 
-intersperse = undefined
+intersperse :: a -> [a] -> [a]
+intersperse _ [] = []
+intersperse _ [x] = [x]
+intersperse c (x:xs) = x : c : intersperse c xs
 
 tintersperse :: Test
-tintersperse = "intersperse" ~: (assertFailure "testcase for intersperse" :: Assertion)
+tintersperse = intersperse ',' "abcde" ~?= "a,b,c,d,e"
  
 
 -- invert lst returns a list with each pair reversed.
@@ -102,10 +104,12 @@ tintersperse = "intersperse" ~: (assertFailure "testcase for intersperse" :: Ass
 --   note, you need to add a type annotation to test invert with []
 --
 
-invert = undefined
+invert :: [(a,b)] -> [(b,a)]
+invert = map (\(x,y) -> (y,x))
 
 tinvert :: Test
-tinvert = "invert" ~: (assertFailure "testcase for invert" :: Assertion)
+tinvert = TestList [ invert [("a",1),("a",2)] ~?= [(1,"a"),(2,"a")],
+                     invert ([] :: [(Int,Char)]) ~?= [] ]
  
 
 -- concat
@@ -117,10 +121,11 @@ tinvert = "invert" ~: (assertFailure "testcase for invert" :: Assertion)
 -- NOTE: remember you cannot use any functions from the Prelude or Data.List for
 -- this problem, even for use as a helper function.
 
-concat = undefined
+concat :: [[a]] -> [a]
+concat = foldr (++) []
 
 tconcat :: Test
-tconcat = "concat" ~: (assertFailure "testcase for concat" :: Assertion)
+tconcat = concat [[1,2,3],[4,5,6],[7,8,9]] ~?= [1,2,3,4,5,6,7,8,9]
 
 -- transpose  (WARNING: this one is tricky!)
 
@@ -135,10 +140,21 @@ tconcat = "concat" ~: (assertFailure "testcase for concat" :: Assertion)
 --    transpose  [[]] returns []
 -- transpose is defined in Data.List
 
-transpose = undefined
+transpose :: Eq a => [[a]] -> [[a]]
+transpose mat = let (column, rest) = grab mat
+                in case column of
+                      [] -> []
+                      _ -> column : transpose rest
+                where
+                  grab :: Eq a => [[a]] -> ([a], [[a]])
+                  grab mat = if [] `List.elem` mat
+                              then ([], [])
+                              else (map List.head mat, map List.tail mat)
 
 ttranspose :: Test
-ttranspose = "transpose" ~: (assertFailure "testcase for transpose" :: Assertion)
+ttranspose = TestList [ transpose [[1,2,3],[4,5,6]] ~?= [[1,4],[2,5],[3,6]],
+                        transpose [[1,2],[3,4,5]] ~?= [[1,3],[2,4]],
+                        transpose ([[]] :: [[Int]]) ~?= [] ]
 
 -- countSub sub str
 
@@ -147,17 +163,57 @@ ttranspose = "transpose" ~: (assertFailure "testcase for transpose" :: Assertion
 -- for example:
 --      countSub "aa" "aaa" returns 2
 
-countSub = undefined
+countSub :: String -> String -> Int
+countSub substr str = 
+  counter substr str 0
+    where 
+      counter :: String -> String -> Int -> Int
+      counter substr str count =
+            let l = List.length substr in
+              if List.take l str == substr
+              then counter substr (List.tail str) (count+1)
+              else if str == []
+                  then count
+                  else counter substr (List.tail str) count
+
 tcountSub :: Test
-tcountSub = "countSub" ~: (assertFailure "testcase for countSub" :: Assertion)
+tcountSub = countSub "aa" "aaa" ~?= 2
 
 --------------------------------------------------------------------------------
 
 -- Part One: Hottest Day
 
+(|>) :: a -> (a -> b) -> b
+(|>) x f = f x
+
 weather :: String -> String
-weather str = error "unimplemented"
- 
+weather str = 
+  let cleaned = cleanWeather str in
+    lines cleaned
+    |> map words
+    |> map (!!! [0..2])
+    |> map (map readInt)
+    |> minTempSpread (0,1000)
+    |> show
+
+minTempSpread :: (Int, Int) -> [[Maybe Int]] -> Int
+minTempSpread (minInt, _) [] = minInt
+minTempSpread (minInt, minSpread) (x:xs) =
+  let [ind, max, min] = x in
+    let Just minner = min
+        Just maxxer = max
+        Just inder = ind
+        in if (maxxer - minner) < minSpread
+            then minTempSpread (inder, maxxer-minner) xs
+            else minTempSpread (minInt, minSpread) xs
+
+cleanWeather :: String -> String
+cleanWeather str =
+   concat $ intersperse "\n" $ take 31 $ drop 18 (lines str)
+
+(!!!) :: [a] -> [Int] -> [a]
+(!!!) xs [] = []
+(!!!) xs (i:is) = (xs !! i) : (xs !!! is)
 
 weatherProgram :: IO ()
 weatherProgram = do
