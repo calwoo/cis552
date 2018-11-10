@@ -60,7 +60,11 @@ Nothing.)
 So, we can use `lookup` to encode a particular character:
 
 > encodeChar :: Char -> Char
-> encodeChar c = undefined
+> encodeChar c =
+>   case lookup c code of
+>        Just en -> en
+>        Nothing -> c
+>     
 
 > testEncodeChar = runTestTT $ TestList [ encodeChar 'a' ~?= 't',
 >                                         encodeChar '.' ~?= '.']
@@ -71,7 +75,7 @@ that `String`s are just lists of `Char`s, we know just the abstraction
 for this from `Lec3`:
 
 > encodeLine :: String -> String
-> encodeLine = undefined
+> encodeLine = map encodeChar
 
 > testEncodeLine = runTestTT $ TestList [encodeLine "abc defgh" ~?= "the quick"]
 
@@ -92,7 +96,7 @@ in the standard library to do just this.  Also its counterpart:
 So...
 
 > encodeContent :: String -> String
-> encodeContent = undefined
+> encodeContent = unlines . reverse . (map encodeLine) . lines
 
 
 > testEncodeContent = runTestTT $
@@ -114,7 +118,9 @@ Haskell Prelude to find functions for reading and writing files.
         writeFile :: FilePath -> String -> IO ()
 
 > encodeFile :: FilePath -> IO ()
-> encodeFile f =undefined
+> encodeFile f =
+>    do file <- readFile f
+>       writeFile f (encodeContent file)
 
 
 Finally, lets put it all together into a "main" function that reads in
